@@ -29,7 +29,25 @@ for iteration in range(10000):
 #输出样本[1, 0, 0]的预测值   
 print(1/ (1 + exp( + exp(-dot(array([1, 0, 0]), synaptic_weights) + bias))))
 
-l = [i[0] for i in synaptic_weights]
-l.append(bias)
+weights = [i[0] for i in synaptic_weights]
+
+result = "y = "
+
+for w, x in zip(weights,["x1","x2","x3"]):
+    if w > 0 :
+        if x == "x1":
+            result += "%.2f"%w + "*" + x
+        else:
+            result += " + %.2f"%w + "*" + x
+    elif w < 0 :
+        if x == "x1":
+            result += "%.2f"%w + "*" + x
+        else:
+            result += " - %.2f"%abs(w) + "*" + x    
+            
+if bias > 0:
+    result += " + %.2f"%bias
+elif bias < 0:
+    result += " - %.2f"%abs(bias)
 #显示多项式
-print("y = %.2f*x1 + %.2f*x2 + %.2f*x3 + %.2f" % tuple(l))
+print(result)
