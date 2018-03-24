@@ -1,0 +1,78 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Mar 24 15:40:36 2018
+
+@author: xiezhilong
+"""
+
+from pymongo import MongoClient
+
+
+# 连接数据库
+con = MongoClient('localhost',27017)
+mydb = con['xzlDb']
+
+# 数据库中的文档，类似与关系数据库的表
+document = mydb['students']
+
+def queryAllRec():
+    """
+      查询所有的记录
+    """    
+    stuArray = document.find()
+    for r in stuArray:
+        print(r['name'], r['sex'])
+        
+def queryWithCondition():
+    """
+      根据条件查询
+    """
+    # 单条件
+    stu = document.find({"stuID":1}) 
+#    for r in stu:
+#        print(r)
+#    
+    # And
+    stu = document.find({"stuID":1 , "name":"张三"})
+#    for r in stu:
+#        print(r)
+        
+    # where stuID <= 2
+    stu = document.find({"stuID":{"$lte":2}})
+    for r in stu:
+        print(r)
+ 
+# 获取记录数       
+def queryCount():
+    print(document.find().count())
+
+# 插入一条记录    
+def insertOneStu():
+    stuInfo = {"stuID":5, "name":"谢某", "sex":"男"}
+    stuID = document.insert_one(stuInfo)
+    print(stuID)
+    
+# 插入多条记录
+def insertManyStus():
+    stuInfos = [{"stuID":6, "name":"张某", "sex":"男"}, {"stuID":7, "name":"陈某", "sex":"女"}]
+    stuIDs = document.insert_many(stuInfos)
+    print(stuIDs)
+    
+# 获取所有集合(表)的名字
+def getAllCollectionsName():
+    for r in mydb.collection_names():
+        print(r)
+        
+# 排序，升序：1，降序-1
+def getAllStuOrderBySex():
+    stuArray = document.find().sort("sex",1)
+    for r in stuArray:
+        print(r)
+        
+# 正则表达式查询
+def queryWithRegex():
+    stuArray = document.find({"name":{"$regex":".{1}三"}},["name","sex"])
+    for r in stuArray:
+        print(r)
+        
+queryWithRegex()
