@@ -1,0 +1,139 @@
+# -*- coding: utf-8 -*-
+
+from math import log
+from numpy import inf, shape
+
+
+def calc_entropy(class_labels):
+    """
+    calculate the entropy of the class labels
+    :param class_labels: array
+    :return: <float>
+    """
+    label_count = {}
+
+    # calculate the frequency of every class labels
+    for element in class_labels.ravel():
+        label_count[element] = label_count.get(element, 0) + 1
+
+    entropy = 0.0
+    n = float(class_labels.shape[0])
+    for key in label_count:
+        prob = label_count[key] / n
+        entropy -= prob * log(prob, 2)
+    return entropy
+
+
+def choose_best_split(dataset, min_leaf):
+    """
+    pick up the feature and its value to be split for maximum information.
+    :param min_leaf: min number of leaf nodes
+    :param dataset: <pd.DataFrame> dataset including features and class labels.
+    :return: a column index and its value.
+    """
+    x = dataset.drop(labels=["labels"], axis=1)
+    y = dataset['labels']
+    nrow = float(shape(dataset)[0])
+    base_entropy = calc_entropy(y.values)  # calculate the impurity of original dataset.
+
+    best_info_gain = -inf
+    best_feat = None
+    best_val = None
+
+    for f in x:  # iterate over all the features
+
+        # create a list of all the examples of this feature
+        # get a set of unique values
+        unique_vals = set(x.loc[:, f])
+
+        for value in unique_vals:
+            first_dataset, second_dataset = split_dataset(dataset, f, value)
+
+            if shape(first_dataset)[0] < min_leaf or shape(second_dataset)[0] < min_leaf:
+                continue
+
+            #  calculate the weighted entropy
+            new_entropy = shape(first_dataset)[0] / nrow * calc_entropy(first_dataset['labels'].values) + \
+                          shape(second_dataset)[0] / nrow * calc_entropy(second_dataset['labels'].values)
+
+            info_gain = base_entropy - new_entropy  # calculate the info gain, i.e. reduction in entropy
+            if info_gain > best_info_gain:  # compare this to the best gain so far
+                best_info_gain = info_gain  # if better than current best, set to best
+                best_feat = f
+                best_val = value
+
+    return best_feat, best_val
+
+
+def split_dataset(dataset, column_index, value):
+    """
+    split a dataset into two mutex sub-dataset.
+    :param dataset: <pd.DataFrame> dataset including features and class labels.
+    :param column_index: <int or str>
+    :param value: the element included in column index.
+    :return: two DataFrame
+    """
+    index = (dataset.loc[:, column_index] <= value).values.ravel()
+    left_set = dataset.drop(labels=[column_index], axis=1).loc[index, :]
+    right_set = dataset.drop(labels=[column_index], axis=1).loc[~index, :]
+    return left_set, right_set
+
+
+def vote_count(class_labels):
+    counts = {}
+    for key in class_labels:
+        counts[key] = counts.get(key, 0) + 1
+
+    sorted_count = sorted(counts.iteritems(), key=lambda x: x[1], reverse=True)
+    return sorted_count[0]
+
+
+def create_tree(dataset, min_leaf):
+    """
+
+    :param min_leaf: min number of leaf nodes
+    :param dataset: <pd.DataFrame> dataset including features and class labels.
+    :return: <dict>
+    """
+    class_labels = dataset['labels'].values
+
+    #  if the number of class label is 1, don't split.
+    if len(set(class_labels.ravel())) is 1:
+        return "class: {}, values: {}, samples: {}".format(class_labels[0], shape(dataset)[0], shape(dataset)[0])
+
+    # if the row number of dataset is 1, most-frequent class label is returned.
+    if dataset.shape[0] is 1:
+        return "class: {}, values: {}, samples: {}".format(class_labels[0], 1, 1)
+
+    best_feat, best_value = choose_best_split(dataset, min_leaf=min_leaf)
+
+    if best_feat is None or best_value is None:
+        temp = vote_count(class_labels)
+        return "class: {}, values: {}, samples: {}".format(temp[0], temp[1], shape(dataset)[0])
+
+    left_set, right_set = split_dataset(dataset, best_feat, best_value)
+
+    tree_ = {best_feat + ' <= ' + str(best_value): create_tree(left_set, min_leaf),
+             best_feat + ' > ' + str(best_value): create_tree(right_set, min_leaf)}
+
+    return tree_
+
+
+if __name__ == '__main__':
+    from pandas import DataFrame
+
+    example = DataFrame(
+        [[1, 1, 1.8, 185.0, 1],
+         [0, 1, 1.6, 95.0, 0],
+         [1, 0, 1.7, 150.0, 1],
+         [1, 1, 1.9, 200.0, 1],
+         [0, 1, 1.67, 110.0, 0],
+         [1, 1, 1.7, 135.0, 1],
+         [1, 1, 1.73, 124.0, 1],
+         [1, 1, 1.78, 155.0, 1],
+         [1, 1, 1.7, 132.0, 1],
+         [0, 1, 1.7, 108.0, 0]],
+        columns=['hair', 'glasses', 'height', 'weight', 'labels']
+    )
+    tree = create_tree(example, min_leaf=2)
+    print(tree)
